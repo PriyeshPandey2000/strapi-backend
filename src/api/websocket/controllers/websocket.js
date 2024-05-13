@@ -1,21 +1,16 @@
 const WebSocket = require('ws');
-let WSServer = WebSocket.Server;
-let server = require('http').createServer();
-let strapiApp = require('strapi').server(); // Import the Strapi server instance
 
-let wss = new WSServer({
-  server: server,
-  perMessageDeflate: false
-});
 
-server.on('request', strapiApp.callback()); // Mount the Strapi app on the server
+const wss = new WebSocket.Server( { port: 80} );
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
   ws.on('message', (message) => {
+    // Echo the received message back to the client
+    const stringMessage = message.toString();
     console.log('Received message:', message);
-    ws.send(message); // Echo the received message back to the client
+    ws.send(stringMessage);
   });
 
   ws.on('close', () => {
@@ -27,6 +22,12 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(2828, () => {
-  console.log('WebSocket server listening on port 2828');
-});
+module.exports = {
+  connect: async (ctx) => {
+    ctx.websocket.server.on('upgrade', (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    });
+  }
+};
